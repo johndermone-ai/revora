@@ -116,6 +116,13 @@ Production-ready foundation for a multi-tenant SaaS built on **React + TypeScrip
 - **Tenant isolation:** all edge functions verify business membership and owner/admin role server-side; webhook lookups resolve the business from the key itself.
 - Deploy: `supabase functions deploy integration-manage` and `supabase functions deploy integration-webhook --no-verify-jwt`; apply `005_integrations.sql` and set the `app.integration_key` setting.
 
+### Final gap-fill (feature-complete pass)
+- **CSV import** (Leads page): file upload or paste, browser-side parse, batch insert, invalid-row reporting, activity log. The file never leaves the browser.
+- **Appointment reminders** (`appointment-reminders` edge function + "Send reminders" on the Calendar page): scans confirmed appointments in the next 24h and creates deduplicated in-app notifications for every team member. Runs on demand or on a schedule; customer-facing SMS/email delivery activates with those channel integrations.
+- **AI Assistant** (`/app/ai-assistant` + `ai-assistant-chat` edge function): in-app chat answering from a LIVE business snapshot (lead counts, recent leads, upcoming appointments, open recovery opportunities). Instructed to say when something isn't visible rather than guessing. Conversation held client-side.
+- **Billing** (`/app/billing`): real subscription record, plan features, usage counters (leads/appointments/customers). Payment collection is honestly marked as pending Stripe wiring — no simulated charges.
+- No Coming Soon placeholders remain; every route is a working feature.
+
 ## Notes for future phases
 
 - Voice AI, website chat capture, booking, quotes, revenue recovery, retention and analytics were deliberately NOT built — the schema and automation engine are structured so they slot in.

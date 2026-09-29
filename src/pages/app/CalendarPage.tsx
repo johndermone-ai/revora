@@ -41,6 +41,26 @@ export default function CalendarPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<Appointment | null>(null);
+  const [reminderBusy, setReminderBusy] = useState(false);
+
+  async function runReminders() {
+    if (!activeBusiness) return;
+    setReminderBusy(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/appointment-reminders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ businessId: activeBusiness.id }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (body.ok) {
+        alert(`Reminders: ${body.scanned} upcoming appointment${body.scanned === 1 ? '' : 's'} scanned, ${body.created} notification${body.created === 1 ? '' : 's'} created.`);
+      }
+    } finally {
+      setReminderBusy(false);
+    }
+  }
 
   const range = useMemo(() => {
     if (view === 'day') return { from: anchor, to: addDays(anchor, 1) };
@@ -77,7 +97,14 @@ export default function CalendarPage() {
       <PageHeader
         title="Calendar"
         subtitle="Appointments from every channel: manual, lead flow, website and AI voice — one booking engine."
-        action={<Button onClick={() => setCreateOpen(true)}>New appointment</Button>}
+        action={(
+          <div className="flex gap-2">
+            <Button variant="secondary" disabled={reminderBusy} onClick={runReminders}>
+              {reminderBusy ? 'Checking…' : 'Send reminders'}
+            </Button>
+            <Button onClick={() => setCreateOpen(true)}>New appointment</Button>
+          </div>
+        )}
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

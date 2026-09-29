@@ -1,6 +1,7 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { useBusinessData } from '../../hooks/useBusinessData';
 import { changeStatus, createLead } from '../../services/leads';
 import type { Lead, LeadSource, LeadStatus } from '../../types/database';
@@ -25,6 +26,7 @@ export default function Leads() {
   const [minScore, setMinScore] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -54,7 +56,7 @@ export default function Leads() {
       <PageHeader
         title="Leads"
         subtitle="Every potential customer, captured and organised in one pipeline."
-        action={<Button onClick={() => setCreateOpen(true)}>New lead</Button>}
+        action={<div className="flex gap-2"><Button variant="secondary" onClick={() => setImportOpen(true)}>Import CSV</Button><Button onClick={() => setCreateOpen(true)}>New lead</Button></div>}
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
@@ -149,6 +151,7 @@ export default function Leads() {
       )}
 
       <NewLeadModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={refetch} />
+      <CsvImportModal open={importOpen} onClose={() => setImportOpen(false)} onDone={(msg) => { setImportOpen(false); refetch(); }} />
     </div>
   );
 }
@@ -306,6 +309,117 @@ function NewLeadModal({ open, onClose, onCreated }: { open: boolean; onClose: ()
           <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Create lead'}</Button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+
+function parseCsv(text: string): Record<string, string>[] {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length < 2) return [];
+  const splitLine = (line: string) => {
+    const out: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') inQuotes = !inQuotes;
+      else if (ch === ',' && !inQuotes) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map((v) => v.trim());
+  };
+  const headers = splitLine(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, '_'));
+  return lines.slice(1).map((line) => {
+    const cells = splitLine(line);
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => { row[h] = cells[i] ?? ''; });
+    return row;
+  });
+}
+
+function CsvImportModal({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: (message: string) => void }) {
+  const { activeBusiness } = useAuth();
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function run() {
+    if (!activeBusiness) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const rows = parseCsv(text);
+      const valid = rows.filter((r) => r.name && r.name.length <= 200);
+      if (valid.length === 0) throw new Error('No importable rows found. The CSV needs a name column and at least one data row.');
+      const skipped = rows.length - valid.length;
+
+      const seen = new Set<string>();
+      const toInsert = valid.filter((r) => {
+        const k = (r.email || r.phone || r.name).toLowerCase();
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+
+      const payload = toInsert.map((r) => ({
+        business_id: activeBusiness.id,
+        name: r.name,
+        email: r.email || null,
+        phone: r.phone || null,
+        company: r.company || null,
+        service_interest: r.service_interest || null,
+        budget: r.budget || null,
+        notes: r.notes || null,
+        source: 'other',
+        status: 'new',
+        lead_score: 10,
+      }));
+
+      const { error } = await supabase.from('leads').insert(payload);
+      if (error) throw error;
+
+      await supabase.from('activities').insert({
+        business_id: activeBusiness.id,
+        entity_type: 'automation',
+        entity_id: activeBusiness.id,
+        type: 'csv_import',
+        title: `CSV import: ${payload.length} leads added`,
+        description: `${payload.length} imported${skipped ? `, ${skipped} skipped (missing name)` : ''}.`,
+      });
+
+      onDone(`Imported ${payload.length} lead${payload.length === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} invalid row${skipped === 1 ? '' : 's'}` : ''}.`);
+      setText('');
+      onClose();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Import failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Import leads from CSV">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-500">
+          Load a CSV file or paste its contents. Expected columns:
+          <code className="mx-1 rounded bg-slate-100 px-1 py-0.5 text-xs">name,email,phone,company,service_interest,budget,notes</code>
+          — name required, everything else optional. Parsed in your browser; only the resulting records are saved.
+        </p>
+        <input
+          type="file" accept=".csv,text/csv" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (file) setText(await file.text());
+          }}
+        />
+        <Textarea rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={'name,email,phone,service_interest\nJane Doe,jane@example.com,07…,Haircut'} />
+        {err && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button disabled={busy || text.trim().length === 0} onClick={run}>{busy ? 'Importing…' : 'Import'}</Button>
+        </div>
+      </div>
     </Modal>
   );
 }
