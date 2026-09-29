@@ -14,8 +14,8 @@ interface Subscription {
 
 const PLAN_FEATURES: Record<string, string[]> = {
   trial: ['All core features', '1 business', 'AI qualification & follow-ups', 'Voice agent architecture ready'],
-  starter: ['Unlimited leads & customers', 'Booking system', 'Revenue recovery engine', 'Email support'],
-  pro: ['Everything in Starter', 'AI voice agent (Retell/Vapi)', 'Analytics dashboard', 'Priority support'],
+  starter: ['Daily AI lead generation (5 leads/day)', 'Booking system', 'Revenue recovery engine', 'Email support'],
+  pro: ['Everything in Starter', 'Daily AI lead generation (15 leads/day)', 'AI voice agent (Retell/Vapi)', 'Analytics dashboard', 'Priority support'],
 };
 
 export default function BillingPage() {

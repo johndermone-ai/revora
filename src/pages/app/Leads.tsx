@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -33,6 +33,71 @@ export default function Leads() {
   const [testMsg, setTestMsg] = useState<string | null>(null);
   const [testErr, setTestErr] = useState<string | null>(null);
   const captureUrl = `${window.location.origin}/capture/${activeBusiness?.id ?? ''}`;
+
+  // ---------- subscription-based daily lead generation ----------
+  const PLAN_QUOTAS: Record<string, number> = { trial: 2, starter: 5, pro: 15 };
+  const [genSettings, setGenSettings] = useState<{ enabled: boolean; service_keywords: string; target_area: string; target_customer: string; last_run_at: string | null } | null>(null);
+  const [genForm, setGenForm] = useState({ service_keywords: '', target_area: '', target_customer: '' });
+  const [genLoading, setGenLoading] = useState(false);
+  const [genMsg, setGenMsg] = useState<string | null>(null);
+  const [genErr, setGenErr] = useState<string | null>(null);
+
+  const loadGenSettings = async () => {
+    if (!activeBusiness) return;
+    const { data } = await supabase
+      .from('lead_gen_settings')
+      .select('enabled, service_keywords, target_area, target_customer, last_run_at')
+      .eq('business_id', activeBusiness.id)
+      .maybeSingle();
+    setGenSettings(data ?? null);
+    if (data) setGenForm({ service_keywords: data.service_keywords ?? '', target_area: data.target_area ?? '', target_customer: data.target_customer ?? '' });
+  };
+  useEffect(() => { void loadGenSettings(); }, [activeBusiness?.id]);
+
+  const { data: subRow } = useBusinessData('subscriptions', activeBusiness?.id ?? null);
+  const genPlanName = (subRow as { plan?: string } | null)?.plan ?? 'trial';
+  const genQuota = PLAN_QUOTAS[genPlanName] ?? 0;
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  const genUsedToday = (data ?? []).filter(
+    (l) => (l.source === 'ai_generated' || l.source === 'marketplace') && new Date(l.created_at) >= startOfToday
+  ).length;
+
+  async function updateGenSettings(patch: Record<string, unknown>) {
+    if (!activeBusiness) return;
+    setGenErr(null);
+    const { error } = await supabase
+      .from('lead_gen_settings')
+      .upsert({ business_id: activeBusiness.id, ...genForm, ...patch });
+    if (error) { setGenErr(error.message); return; }
+    setGenSettings((s) => ({ ...(s ?? { enabled: false, service_keywords: '', target_area: '', target_customer: '', last_run_at: null }), ...patch } as typeof s));
+  }
+  const saveGenForm = () => { void updateGenSettings({}); };
+
+  async function generateNow() {
+    if (!activeBusiness) return;
+    setGenLoading(true); setGenMsg(null); setGenErr(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
+        body: '{}',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.ok === false) {
+        setGenErr(body.skipped ?? body.error ?? 'Generation failed');
+      } else if (body.created === 0) {
+        setGenMsg(body.skipped ?? 'No more leads available today — daily quota reached.');
+      } else {
+        setGenMsg(`${body.created} new lead${body.created === 1 ? '' : 's'} delivered.`);
+        refetch();
+      }
+    } catch (e) {
+      setGenErr(e instanceof Error ? e.message : 'Generation failed');
+    } finally {
+      setGenLoading(false);
+    }
+  }
 
   async function sendTestEnquiry() {
     if (!activeBusiness) return;
@@ -123,6 +188,49 @@ export default function Leads() {
             <p className="text-sm font-semibold text-slate-900">API / webhooks (external systems)</p>
             <p className="mt-1 text-xs text-slate-500">Push leads from any other tool with your Revora API key — deduplicated automatically.</p>
             <Link to="/app/integrations" className="mt-2 inline-block text-xs font-medium text-brand-700 hover:underline">Get your API key →</Link>
+          </div>
+        </div>
+      </Card>
+
+      {/* Daily AI leads — delivered automatically per subscription plan */}
+      <Card className="mb-6">
+        <div className="p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Daily leads — included in your plan</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Plan <span className="font-medium capitalize">{genPlanName}</span>: <span className="font-medium">{genQuota} leads/day</span> · {genUsedToday} delivered today
+              </p>
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={!!genSettings?.enabled} onChange={(e) => updateGenSettings({ enabled: e.target.checked })} className="h-4 w-4" />
+              Automatic daily leads
+            </label>
+          </div>
+          {genSettings?.enabled && (
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <Field label="Services / keywords">
+                <Input placeholder="e.g. landscape gardening, patios" value={genForm.service_keywords} onChange={(e) => setGenForm((f) => ({ ...f, service_keywords: e.target.value }))} onBlur={() => saveGenForm()} />
+              </Field>
+              <Field label="Target area">
+                <Input placeholder="e.g. Manchester & Stockport" value={genForm.target_area} onChange={(e) => setGenForm((f) => ({ ...f, target_area: e.target.value }))} onBlur={() => saveGenForm()} />
+              </Field>
+              <Field label="Target customer">
+                <Input placeholder="e.g. homeowners" value={genForm.target_customer} onChange={(e) => setGenForm((f) => ({ ...f, target_customer: e.target.value }))} onBlur={() => saveGenForm()} />
+              </Field>
+            </div>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button onClick={generateNow} disabled={genLoading || !genSettings?.enabled}>
+              {genLoading ? 'Generating…' : 'Generate leads now'}
+            </Button>
+            {genMsg && <p className="text-xs text-emerald-700">{genMsg}</p>}
+            {genErr && <p className="text-xs text-red-600">{genErr}</p>}
+            <p className="text-xs text-slate-400">
+              {genSettings?.last_run_at
+                ? `Last run ${relativeTime(genSettings.last_run_at)}`
+                : 'Never run yet'}
+            </p>
           </div>
         </div>
       </Card>
