@@ -24,21 +24,29 @@ scraper's enrichment feature (free credits/month).
    main_category → service interest, address/website/rating/social → notes.
    Duplicates by kgmid/phone are removed. Leads arrive as status `new`.
 
-## Option B — self-hosted API + automatic daily delivery
+## Option B — self-hosted API + automatic daily delivery (platform owner only)
 
 The scraper has a Python API that can run on any VM (see
-`server-deployment.md` in the scraper repo):
+`server-deployment.md` in the scraper repo). **This is a platform-level
+setting: the Revora owner (you) configures it once with secrets; your
+customers are never asked for an endpoint or API key** — they just toggle
+"Automatic daily leads" and set their services/area, and real leads arrive
+per their plan.
 
 1. Host a small endpoint that accepts
-   `POST { count, services, area }` and returns
+   `POST { count, services, area }` (header `x-api-key` optional) and returns
    `[{ name, phone, email?, main_category?, address?, website? }]`
    by running the scraper for `services in area`.
-2. In Revora, connect the integration (`integration_key: 'google_maps'`)
-   with config `{ "endpoint": "https://your-vm.example/scrape", "api_key": "..." }`.
-3. The daily generator then prefers this provider: every day it fetches up
-   to the plan's remaining quota of real Google Maps leads per business.
-   If the endpoint fails or is unconfigured, nothing is fabricated — the
-   generator falls back to the labelled AI prospects only if no AI path
-   exists either, else reports honestly.
+2. Set the platform secrets once:
+   ```
+   supabase secrets set \
+     GOOGLE_MAPS_SCRAPER_ENDPOINT=https://your-vm.example/scrape \
+     GOOGLE_MAPS_SCRAPER_API_KEY=your-shared-key
+   ```
+3. Done. The daily generator now prefers real Google Maps leads for every
+   subscribed business, up to each plan's remaining quota, using each
+   business's own services/area targeting. If the endpoint is down or
+   unset, nothing is fabricated — the labelled AI generator is the honest
+   fallback.
 
 Plan quotas still apply: trial 2/day, starter 5/day, pro 15/day.

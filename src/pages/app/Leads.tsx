@@ -199,7 +199,7 @@ export default function Leads() {
             <div>
               <p className="text-sm font-semibold text-slate-900">Daily leads — included in your plan</p>
               <p className="mt-1 text-xs text-slate-500">
-                Plan <span className="font-medium capitalize">{genPlanName}</span>: <span className="font-medium">{genQuota} leads/day</span> · {genUsedToday} delivered today
+                Plan <span className="font-medium capitalize">{genPlanName}</span>: <span className="font-medium">{genQuota} leads/day</span> · {genUsedToday} delivered today · sources: Revora lead network + AI
               </p>
             </div>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">

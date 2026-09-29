@@ -72,15 +72,21 @@ Return strict JSON: {"leads":[{"name","email","phone","service_interest","notes"
 // pretends a provider delivered leads.
 const PROVIDERS: Record<string, (cfg: Record<string, unknown>, count: number) => Promise<LeadRow[]>> = {
   // omkarcloud/google-maps-scraper self-hosted API (see
-  // tools/google-maps-scraper/runbook.md). Config: { endpoint, api_key? }.
-  // The endpoint must accept POST { count, services, area } and return
-  // JSON: [{ name, phone, email?, main_category?, address?, website? }].
+  // tools/google-maps-scraper/runbook.md). PLATFORM-LEVEL connection:
+  // the platform owner sets the secrets once (supabase secrets set
+  // GOOGLE_MAPS_SCRAPER_ENDPOINT=... GOOGLE_MAPS_SCRAPER_API_KEY=...)
+  // and every subscribed business receives real leads automatically —
+  // customers are NEVER asked for an endpoint or API key. Per-business
+  // targeting (services/area) comes from their lead_gen_settings.
+  // The endpoint must accept POST { count, services, area, api_key? } and
+  // return JSON: [{ name, phone, email?, main_category?, address?, website? }].
   // Returns [] on any failure — never fabricates.
   'google_maps': async (cfg, count) => {
-    const endpoint = String(cfg.endpoint ?? '');
+    const endpoint = Deno.env.get('GOOGLE_MAPS_SCRAPER_ENDPOINT') ?? String(cfg.endpoint ?? '');
+    const platformKey = Deno.env.get('GOOGLE_MAPS_SCRAPER_API_KEY') ?? (cfg.api_key ? String(cfg.api_key) : '');
     if (!endpoint) return [];
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (cfg.api_key) headers['x-api-key'] = String(cfg.api_key);
+    if (platformKey) headers['x-api-key'] = platformKey;
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -105,20 +111,18 @@ const PROVIDERS: Record<string, (cfg: Record<string, unknown>, count: number) =>
 };
 
 async function fetchFromProvider(
-  db: ReturnType<typeof createClient>, businessId: string, count: number
+  count: number, services: string, area: string
 ): Promise<{ rows: LeadRow[]; provider: string }> {
-  // Real lead providers register here: integrations table,
-  // integration_key like 'bark' with kind prefix 'lead_provider:'.
-  // The integrations table is the registry (see migration 005).
-  const { data: cfgs } = await db.from('integrations')
-    .select('integration_key, config')
-    .eq('business_id', businessId)
-    .eq('status', 'connected');
-  for (const c of (cfgs ?? []) as { integration_key: string; config: Record<string, unknown> }[]) {
-    const providerName = c.integration_key.replace('lead_provider:', '');
+  // Platform-level providers (env-configured by the platform owner).
+  // Preferred first; each returns [] when unconfigured or failing,
+  // so the generator never fabricates. Customers never configure these.
+  const providers: [string, Record<string, unknown>][] = [
+    ['google_maps', { services, area }],
+  ];
+  for (const [providerName, cfg] of providers) {
     const adapter = PROVIDERS[providerName];
     if (!adapter) continue;
-    const rows = await adapter(c.config ?? {}, count);
+    const rows = await adapter(cfg, count);
     if (rows.length > 0) return { rows, provider: providerName };
   }
   return { rows: [], provider: '' };
@@ -156,7 +160,7 @@ async function generateForBusiness(
   if (remaining === 0) return { ok: true, created: 0, skipped: 'daily quota reached' };
 
   // Prefer a real provider; fall back to the labelled AI generator
-  const delivered = await fetchFromProvider(db, businessId, remaining);
+  const delivered = await fetchFromProvider(remaining, s.service_keywords, s.target_area);
   let rows = delivered.rows;
   let source: 'marketplace' | 'ai_generated' | 'google_maps' = 'marketplace';
   if (rows.length > 0) {
