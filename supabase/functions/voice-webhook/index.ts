@@ -204,34 +204,53 @@ async function triggerAutomations(
   const matched = (rules as { id: string; name: string; action: Record<string, unknown> }[]) ?? [];
 
   for (const rule of matched) {
-    const run = { business_id: businessId, rule_id: rule.id, lead_id: leadId, status: 'ok', output: { source: 'voice_call', outcome }, created_at: new Date().toISOString() };
     const actionType = String((rule.action as { type?: string })?.type ?? '');
-    if (actionType === 'create_follow_up' && leadId) {
-      await db.from('follow_ups').insert({
-        business_id: businessId, lead_id: leadId,
-        channel: 'email', status: 'draft', subject: 'Following up on your call',
-        body: '', ai_generated: false,
-      });
-    } else if (actionType === 'create_task') {
-      await db.from('tasks').insert({
-        business_id: businessId,
-        title: `Review voice call outcome (${outcome.replace('_', ' ')})`,
-        status: 'open', priority: 'medium', related_lead_id: leadId,
-      });
-    } else if (actionType === 'send_notification') {
-      await db.from('notifications').insert({
-        business_id: businessId,
-        title: 'Voice call completed',
-        body: `Automation "${rule.name}" ran after a call with outcome ${outcome.replace('_', ' ')}.`,
-        type: 'automation', read: false,
-      });
+    let runStatus = 'ok';
+    let runOutput: Record<string, unknown> = { source: 'voice_call', outcome };
+
+    try {
+      if (actionType === 'create_follow_up' && leadId) {
+        await db.from('follow_ups').insert({
+          business_id: businessId, lead_id: leadId,
+          channel: 'email', status: 'draft', subject: 'Following up on your call',
+          body: '', ai_generated: false,
+        });
+      } else if (actionType === 'create_task') {
+        await db.from('tasks').insert({
+          business_id: businessId,
+          title: `Review voice call outcome (${outcome.replace('_', ' ')})`,
+          status: 'open', priority: 'medium', related_lead_id: leadId,
+        });
+      } else if (actionType === 'send_notification') {
+        // notifications.user_id is NOT NULL: notify every member of the business
+        const { data: members } = await db.from('business_members')
+          .select('user_id').eq('business_id', businessId);
+        const memberIds = ((members as { user_id: string }[]) ?? []).map((m) => m.user_id);
+        if (memberIds.length === 0) throw new Error('No business members to notify');
+        await db.from('notifications').insert(
+          memberIds.map((uid) => ({
+            business_id: businessId, user_id: uid,
+            title: 'Voice call completed',
+            body: `Automation "${rule.name}" ran after a call with outcome ${outcome.replace('_', ' ')}.`,
+            type: 'automation', read: false,
+          }))
+        );
+      } else {
+        runStatus = 'skipped';
+        runOutput = { source: 'voice_call', reason: `Unsupported action: ${actionType}` };
+      }
+    } catch (e) {
+      runStatus = 'error';
+      runOutput = { source: 'voice_call', error: e instanceof Error ? e.message : 'action failed' };
     }
-    await db.from('automation_runs').insert(run).then(
-      () => {},
-      async () => { await db.from('automation_runs').insert({ ...run, status: 'error', output: { source: 'voice_call', error: 'action failed' } }); }
-    );
+
+    await db.from('automation_runs').insert({
+      business_id: businessId, rule_id: rule.id, lead_id: leadId,
+      status: runStatus, output: runOutput,
+    });
   }
 }
+
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });

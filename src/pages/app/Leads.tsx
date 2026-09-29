@@ -10,6 +10,7 @@ import { Badge, Button, Card, EmptyState, ErrorState, Field, Input, Modal, Selec
 import PageHeader from '../../components/layout/PageHeader';
 import { formatDate, relativeTime } from '../../lib/format';
 import { scoreBand } from '../../lib/leadScoring';
+import { normalizeLeadRows, parseCsv } from '../../lib/csv';
 
 type ViewMode = 'list' | 'pipeline';
 
@@ -314,30 +315,6 @@ function NewLeadModal({ open, onClose, onCreated }: { open: boolean; onClose: ()
 }
 
 
-function parseCsv(text: string): Record<string, string>[] {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length < 2) return [];
-  const splitLine = (line: string) => {
-    const out: string[] = [];
-    let cur = '';
-    let inQuotes = false;
-    for (const ch of line) {
-      if (ch === '"') inQuotes = !inQuotes;
-      else if (ch === ',' && !inQuotes) { out.push(cur); cur = ''; }
-      else cur += ch;
-    }
-    out.push(cur);
-    return out.map((v) => v.trim());
-  };
-  const headers = splitLine(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, '_'));
-  return lines.slice(1).map((line) => {
-    const cells = splitLine(line);
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => { row[h] = cells[i] ?? ''; });
-    return row;
-  });
-}
-
 function CsvImportModal({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: (message: string) => void }) {
   const { activeBusiness } = useAuth();
   const [text, setText] = useState('');
@@ -350,17 +327,8 @@ function CsvImportModal({ open, onClose, onDone }: { open: boolean; onClose: () 
     setErr(null);
     try {
       const rows = parseCsv(text);
-      const valid = rows.filter((r) => r.name && r.name.length <= 200);
-      if (valid.length === 0) throw new Error('No importable rows found. The CSV needs a name column and at least one data row.');
-      const skipped = rows.length - valid.length;
-
-      const seen = new Set<string>();
-      const toInsert = valid.filter((r) => {
-        const k = (r.email || r.phone || r.name).toLowerCase();
-        if (seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      });
+      const { unique: toInsert, skipped, duplicates } = normalizeLeadRows(rows);
+      if (toInsert.length === 0) throw new Error('No importable rows found. The CSV needs a name column and at least one data row.');
 
       const payload = toInsert.map((r) => ({
         business_id: activeBusiness.id,
@@ -385,10 +353,10 @@ function CsvImportModal({ open, onClose, onDone }: { open: boolean; onClose: () 
         entity_id: activeBusiness.id,
         type: 'csv_import',
         title: `CSV import: ${payload.length} leads added`,
-        description: `${payload.length} imported${skipped ? `, ${skipped} skipped (missing name)` : ''}.`,
+        description: `${payload.length} imported${skipped ? `, ${skipped} skipped (missing name)` : ''}${duplicates ? `, ${duplicates} duplicate${duplicates === 1 ? '' : 's'} removed` : ''}.`,
       });
 
-      onDone(`Imported ${payload.length} lead${payload.length === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} invalid row${skipped === 1 ? '' : 's'}` : ''}.`);
+      onDone(`Imported ${payload.length} lead${payload.length === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} invalid row${skipped === 1 ? '' : 's'}` : ''}${duplicates ? `, removed ${duplicates} duplicate${duplicates === 1 ? '' : 's'}` : ''}.`);
       setText('');
       onClose();
     } catch (e) {

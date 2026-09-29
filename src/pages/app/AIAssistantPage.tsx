@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { Button, Card, Spinner } from '../../components/ui';
 import PageHeader from '../../components/layout/PageHeader';
 
@@ -30,7 +31,7 @@ export default function AIAssistantPage() {
     setBusy(true);
     setErr(null);
     try {
-      const { data: { session } } = await (await import('../../lib/supabase')).supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant-chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
