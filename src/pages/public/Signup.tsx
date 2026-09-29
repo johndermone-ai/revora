@@ -9,6 +9,7 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const navigate = useNavigate();
 
   async function handleSubmit(e: FormEvent) {
@@ -16,14 +17,44 @@ export default function Signup() {
     setError(null);
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setSubmitting(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName } },
     });
     setSubmitting(false);
-    if (error) { setError(error.message); return; }
+    if (error) {
+      setError(
+        error.message.includes('already registered')
+          ? 'An account with this email already exists. Try logging in instead.'
+          : error.message
+      );
+      return;
+    }
+    // If email confirmation is required, there is NO session yet —
+    // navigating to the auth-guarded onboarding route would bounce the
+    // user straight back to /login (the signup half of the redirect
+    // loop). Show a confirmation screen instead.
+    if (!data.session) {
+      setNeedsConfirmation(true);
+      return;
+    }
     navigate('/onboarding');
+  }
+
+  if (needsConfirmation) {
+    return (
+      <main className="mx-auto flex max-w-md flex-col px-4 py-20">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Check your email</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          We sent a confirmation link to <span className="font-medium text-slate-900">{email}</span>.
+          Click it to activate your account, then log in.
+        </p>
+        <Link to="/login" className="mt-6">
+          <Button className="w-full">Go to log in</Button>
+        </Link>
+      </main>
+    );
   }
 
   return (
