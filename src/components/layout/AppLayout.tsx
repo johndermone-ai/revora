@@ -7,6 +7,7 @@ const nav: { to: string; label: string; adminOnly?: boolean; end?: boolean }[] =
   { to: '/app', label: 'Dashboard', end: true },
   { to: '/app/leads', label: 'Leads' },
     { to: '/app/recovery', label: 'Recovery' },
+    { to: '/app/voice', label: 'Voice' },
   { to: '/app/customers', label: 'Customers' },
   { to: '/app/activities', label: 'Activities' },
   { to: '/app/tasks', label: 'Tasks' },

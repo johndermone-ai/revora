@@ -14,6 +14,7 @@ const TRIGGERS = [
   { value: 'no_response', label: 'No response for X days' },
   { value: 'appointment_reminder', label: 'Appointment reminder' },
   { value: 'lead_lost_reactivation', label: 'Lost lead reactivation' },
+  { value: 'voice_call_completed', label: 'Voice call completed' },
 ];
 
 const ACTIONS = [

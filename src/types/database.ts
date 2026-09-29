@@ -329,6 +329,81 @@ export const OPPORTUNITY_TYPE_LABELS: Record<OpportunityType, string> = {
   overdue_follow_up: 'Overdue follow-up',
 };
 
+// ============================================================
+// AI Voice Agent
+// ============================================================
+export type VoiceProvider = 'retell' | 'vapi';
+export type CallOutcome = 'lead_created' | 'appointment_booked' | 'customer_support' | 'human_transfer' | 'spam' | 'other';
+
+export interface VoiceAgentFaq { question: string; answer: string }
+
+export interface VoiceAgent {
+  id: string;
+  business_id: string;
+  agent_name: string;
+  greeting: string;
+  business_description: string;
+  services: string[];
+  faqs: VoiceAgentFaq[];
+  business_hours: string;
+  transfer_number: string | null;
+  appointment_rules: { auto_confirm?: boolean; max_slots_to_offer?: number };
+  voice_settings: { language?: string; voice?: string; speed?: number };
+  behaviour_instructions: string;
+  handoff_rules: string[];
+  provider: VoiceProvider | null;
+  provider_agent_id: string | null;
+  webhook_secret: string;
+  status: 'disconnected' | 'connected' | 'error';
+  status_message: string | null;
+  last_connected_at: string | null;
+  compliance: {
+    recording_enabled?: boolean;
+    recording_consent_notice?: string;
+    ai_disclosure_notice?: string;
+    consent_mode?: 'notice_only' | 'verbal_consent_required';
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VoiceCall {
+  id: string;
+  business_id: string;
+  voice_agent_id: string | null;
+  provider: VoiceProvider;
+  provider_call_id: string;
+  customer_id: string | null;
+  lead_id: string | null;
+  phone_number: string | null;
+  started_at: string | null;
+  answered_at: string | null;
+  ended_at: string | null;
+  duration_seconds: number | null;
+  outcome: CallOutcome | null;
+  intent: string | null;
+  transcript_url: string | null;
+  recording_url: string | null;
+  ai_summary: string | null;
+  processed: boolean;
+  created_at: string;
+}
+
+export const CALL_OUTCOME_LABELS: Record<CallOutcome, string> = {
+  lead_created: 'Lead created',
+  appointment_booked: 'Appointment booked',
+  customer_support: 'Customer support',
+  human_transfer: 'Human transfer',
+  spam: 'Spam',
+  other: 'Other',
+};
+
+export const HANDOFF_RULE_OPTIONS = [
+  { value: 'customer_requests_human', label: 'Caller asks for a human' },
+  { value: 'low_confidence', label: 'AI cannot confidently answer' },
+  { value: 'sensitive_issue', label: 'Sensitive issue (complaint, payment dispute, legal)' },
+];
+
 export const LEAD_STATUSES: { value: LeadStatus; label: string }[] = [
   { value: 'new', label: 'New' },
   { value: 'contacted', label: 'Contacted' },

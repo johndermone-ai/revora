@@ -21,6 +21,7 @@ import Automations from './pages/app/Automations';
 import Settings from './pages/app/Settings';
 import CalendarPage from './pages/app/CalendarPage';
 import RecoveryPage from './pages/app/RecoveryPage';
+import VoicePage from './pages/app/VoicePage';
 import { AIAssistantPage, BillingPage, IntegrationsPage } from './pages/app/ComingSoon';
 import AnalyticsPage from './pages/app/AnalyticsPage';
 import { Spinner } from './components/ui';
@@ -53,6 +54,7 @@ function AppRoutes() {
         <Route path="tasks" element={<Tasks />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="recovery" element={<RecoveryPage />} />
+        <Route path="voice" element={<VoicePage />} />
         <Route path="automations" element={<Automations />} />
         <Route path="ai-assistant" element={<AIAssistantPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />

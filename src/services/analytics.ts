@@ -55,13 +55,15 @@ export interface LeadMetrics {
 }
 
 export interface VoiceMetrics {
-  // Null = no telephony/voice integration connected. Never faked.
-  totalCalls: null;
-  answeredCalls: null;
-  missedCalls: null;
-  transfers: null;
-  // These two ARE real: bookings made through the AI voice flow
-  // (appointments with created_source 'ai_voice').
+  // agentConnected=false means no voice provider is connected yet — the
+  // UI shows "—" with a hint instead of implying a measured zero.
+  agentConnected: boolean;
+  totalCalls: number | null;
+  answeredCalls: number | null;
+  missedCalls: number | null;
+  transfers: number | null;
+  // Real once calls flow: leads linked from voice calls, and appointments
+  // booked with created_source 'ai_voice' (voice flow or post-call pipeline).
   leadsGenerated: number;
   appointmentsGenerated: number;
 }
@@ -181,6 +183,17 @@ export async function loadAnalytics(businessId: string, period: Period): Promise
   const voiceAppts = apptsInPeriod.filter((a) => a.created_source === 'ai_voice');
   const voiceLeadIds = new Set(voiceAppts.map((a) => a.lead_id).filter(Boolean) as string[]);
 
+  // ---- voice calls (real records once the voice provider is connected) ----
+  const [{ data: voiceAgentRow }, { data: voiceCallsRows }] = await Promise.all([
+    supabase.from('voice_agents').select('id, status').eq('business_id', businessId).maybeSingle(),
+    supabase.from('voice_calls').select('id, started_at, answered_at, ended_at, lead_id, outcome')
+      .eq('business_id', businessId).gte('started_at', startIso).lt('started_at', endIso),
+  ]);
+  const voiceAgent = voiceAgentRow as { status: string } | null;
+  const agentConnected = voiceAgent?.status === 'connected';
+  const voiceCalls = (voiceCallsRows as { id: string; answered_at: string | null; ended_at: string | null; lead_id: string | null; outcome: string | null }[]) ?? [];
+  const voiceCallLeadIds = new Set(voiceCalls.map((c) => c.lead_id).filter(Boolean) as string[]);
+
   // ---- recovery ----
   const { data: opps } = await supabase.from('revenue_opportunities')
     .select('id, status, estimated_value, detected_at, recovered_at')
@@ -223,8 +236,12 @@ export async function loadAnalytics(businessId: string, period: Period): Promise
   return {
     leads: { totalAllTime: totalAllTime ?? 0, newLeads, qualified, won: won.length, lost, conversionRate, buckets: buckets.map((b, i) => ({ label: bucketLabel(b.from, dayCount, bucketCount, i), count: b.count })) },
     voice: {
-      totalCalls: null, answeredCalls: null, missedCalls: null, transfers: null,
-      leadsGenerated: voiceLeadIds.size,
+      agentConnected,
+      totalCalls: agentConnected ? voiceCalls.length : null,
+      answeredCalls: agentConnected ? voiceCalls.filter((c) => c.answered_at != null).length : null,
+      missedCalls: agentConnected ? voiceCalls.filter((c) => c.answered_at == null && c.ended_at != null).length : null,
+      transfers: agentConnected ? voiceCalls.filter((c) => c.outcome === 'human_transfer').length : null,
+      leadsGenerated: new Set([...voiceCallLeadIds, ...voiceLeadIds]).size,
       appointmentsGenerated: voiceAppts.length,
     },
     sales: {

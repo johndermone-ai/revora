@@ -159,15 +159,17 @@ export default function AnalyticsPage() {
             {/* ---- Voice ---- */}
             <Section title="Voice metrics" subtitle="AI voice agent">
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
-                <Metric label="Total calls" value="—" na hint="Needs voice integration" />
-                <Metric label="Answered" value="—" na hint="Needs voice integration" />
-                <Metric label="Missed" value="—" na hint="Needs voice integration" />
-                <Metric label="Transfers" value="—" na hint="Needs voice integration" />
-                <Metric label="Leads generated" value={data.voice.leadsGenerated} hint="Via AI voice bookings" />
-                <Metric label="Appointments generated" value={data.voice.appointmentsGenerated} hint="Via AI voice bookings" />
+                <Metric label="Total calls" value={data.voice.totalCalls ?? '—'} na={data.voice.totalCalls == null} hint={data.voice.agentConnected ? 'From call records' : 'Connect the voice agent'} />
+                <Metric label="Answered" value={data.voice.answeredCalls ?? '—'} na={data.voice.answeredCalls == null} hint={data.voice.agentConnected ? 'From call records' : 'Connect the voice agent'} />
+                <Metric label="Missed" value={data.voice.missedCalls ?? '—'} na={data.voice.missedCalls == null} hint={data.voice.agentConnected ? 'From call records' : 'Connect the voice agent'} />
+                <Metric label="Transfers" value={data.voice.transfers ?? '—'} na={data.voice.transfers == null} hint={data.voice.agentConnected ? 'To a human' : 'Connect the voice agent'} />
+                <Metric label="Leads generated" value={data.voice.leadsGenerated} hint="From voice calls & bookings" />
+                <Metric label="Appointments generated" value={data.voice.appointmentsGenerated} hint="Booked via the voice flow" />
               </div>
               <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                Call counts (total, answered, missed, transfers) require a telephony/AI-voice integration that isn't connected yet — they stay blank rather than invented. Leads and appointments generated through the existing AI voice booking flow are real and shown above.
+                {data.voice.agentConnected
+                  ? 'Call counts come from real call records delivered by your voice provider.'
+                  : 'Call counts stay blank until a voice provider is connected — they are never invented. Leads and appointments generated through the AI voice booking flow are real and shown above.'}
               </p>
             </Section>
 
