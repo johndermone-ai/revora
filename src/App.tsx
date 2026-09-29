@@ -22,7 +22,8 @@ import Settings from './pages/app/Settings';
 import CalendarPage from './pages/app/CalendarPage';
 import RecoveryPage from './pages/app/RecoveryPage';
 import VoicePage from './pages/app/VoicePage';
-import { AIAssistantPage, BillingPage, IntegrationsPage } from './pages/app/ComingSoon';
+import { AIAssistantPage, BillingPage } from './pages/app/ComingSoon';
+import IntegrationsPage from './pages/app/IntegrationsPage';
 import AnalyticsPage from './pages/app/AnalyticsPage';
 import { Spinner } from './components/ui';
 

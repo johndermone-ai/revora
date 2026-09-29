@@ -106,6 +106,16 @@ Production-ready foundation for a multi-tenant SaaS built on **React + TypeScrip
 - **Dashboard** (`/app/voice`): calls, answered, missed, leads generated, appointments, transfers, per-call outcomes and AI summaries — all from real `voice_calls` rows. The Revenue Analytics voice section reads the same table once connected (blank, not zero, before connection).
 - Deploy: `supabase functions deploy voice-webhook --no-verify-jwt` and `supabase functions deploy voice-agent-config`.
 
+### Integrations Hub (`/app/integrations`)
+- **Generic registry architecture:** every integration is one entry in `src/services/integrations.ts` (INTEGRATIONS) plus, if it needs server-side verification, one case in the `integration-manage` edge function. Adding providers never changes core pages. Categories: Communication (Voice, SendGrid, Postmark, Twilio SMS, Twilio WhatsApp), Calendar (Google, Outlook — OAuth, honestly "Not connected" until the OAuth flow exists), CRM/Data (CSV import, web forms, API/webhooks), Payments (Stripe), AI (OpenAI).
+- **Per-card:** connection status, connect/disconnect, configuration fields, permissions, error status, last successful verification/sync, per-integration logs.
+- **Honest status:** an integration is only marked Connected after a REAL verification call to the provider succeeds server-side (OpenAI /v1/models, Stripe /v1/balance, SendGrid /v3/scopes, Postmark /server, Twilio Accounts). Failures show as Error with the reason. OAuth calendars stay "Not connected" until the OAuth flow is wired — never faked.
+- **Secrets:** sent once over HTTPS, stored pgp-encrypted (`pgp_sym_encrypt`) in `integration_credentials` — a table with RLS enabled and NO client policies; decryption is a security-definer function executable only by the service role. Master key lives in the `app.integration_key` database setting (`alter database postgres set app.integration_key = '...'`), never in code. The only secret ever surfaced is a freshly generated API key, shown once.
+- **API/webhooks integration:** generates a `rv_live_…` API key (SHA-256 hashed for lookup). The `integration-webhook` edge function authenticates inbound lead pushes by that hash — signature-style validation without ever storing or logging the plaintext key. Leads are deduplicated by email/phone.
+- **Audit logs:** every connect / disconnect / config save / verification / webhook event writes an `integration_logs` row, visible per integration in the hub.
+- **Tenant isolation:** all edge functions verify business membership and owner/admin role server-side; webhook lookups resolve the business from the key itself.
+- Deploy: `supabase functions deploy integration-manage` and `supabase functions deploy integration-webhook --no-verify-jwt`; apply `005_integrations.sql` and set the `app.integration_key` setting.
+
 ## Notes for future phases
 
 - Voice AI, website chat capture, booking, quotes, revenue recovery, retention and analytics were deliberately NOT built — the schema and automation engine are structured so they slot in.
