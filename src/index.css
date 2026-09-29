@@ -5,3 +5,34 @@
 body {
   @apply antialiased text-slate-900 bg-white;
 }
+
+/* ---- Revora animations ---- */
+@keyframes rv-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes rv-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes rv-pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+@keyframes rv-pop-in {
+  0% { opacity: 0; transform: scale(0.92); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.rv-fade-up { animation: rv-fade-up 0.7s ease-out both; }
+.rv-fade-up-1 { animation: rv-fade-up 0.7s ease-out 0.1s both; }
+.rv-fade-up-2 { animation: rv-fade-up 0.7s ease-out 0.25s both; }
+.rv-fade-up-3 { animation: rv-fade-up 0.7s ease-out 0.4s both; }
+.rv-fade-up-4 { animation: rv-fade-up 0.7s ease-out 0.55s both; }
+.rv-float { animation: rv-float 5s ease-in-out infinite; }
+.rv-pulse-soft { animation: rv-pulse-soft 2.4s ease-in-out infinite; }
+.rv-pop-in { animation: rv-pop-in 0.45s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .rv-fade-up, .rv-fade-up-1, .rv-fade-up-2, .rv-fade-up-3, .rv-fade-up-4,
+  .rv-float, .rv-pulse-soft, .rv-pop-in { animation: none; }
+}

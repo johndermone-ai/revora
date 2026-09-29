@@ -83,6 +83,17 @@ export default function Settings() {
             </div>
           </Card>
           <Card>
+            <CardHeader title="Lead capture (website)" />
+            <div className="p-5 text-sm text-slate-600">
+              <p className="mb-2">Share this link or embed the form on your website. Every enquiry lands in your Leads pipeline automatically with source "Website".</p>
+              <code className="block break-all rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                {window.location.origin}/capture/{activeBusiness.id}
+              </code>
+              <p className="mt-3 text-xs text-slate-500">For external sites, POST enquiries to:<br />
+                <span className="break-all">https://YOUR-PROJECT.supabase.co/functions/v1/capture-lead</span> with JSON: businessId, name, email or phone, service_interest, notes.</p>
+            </div>
+          </Card>
+          <Card>
             <CardHeader title="Integrations" />
             <div className="p-5 text-sm text-slate-600">
               <p>Email, WhatsApp, SMS, voice and calendar integrations will be configured here. The follow-up engine is already channel-ready - delivery simply stays disabled until a provider is connected.</p>

@@ -34,6 +34,11 @@ Production-ready foundation for a multi-tenant SaaS built on **React + TypeScrip
 - **Never auto-sends.** Email is the prepared channel; with no provider connected the UI says delivery is pending integration rather than pretending a message was sent. WhatsApp/SMS/voice are architecturally ready.
 - **Automation builder** — TRIGGER → CONDITION → ACTION rules (e.g. Proposal Sent + no response 3 days → create follow-up), with per-rule status, last run and error fields, and an execution-history table (`automation_runs`).
 
+### Lead generation (website capture)
+- Public capture page: `/capture/<businessId>` — animated, mobile-friendly, no login needed.
+- Embeddable endpoint: `supabase/functions/capture-lead` (deploy with `--no-verify-jwt` — it is the only intentionally public write path; strict validation, honeypot + rate limiting, always creates source=website / status=new leads).
+- Settings → Lead capture shows your link and the embed instructions.
+
 ## Setup
 
 1. `npm install`

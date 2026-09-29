@@ -9,6 +9,7 @@ import Login from './pages/public/Login';
 import Signup from './pages/public/Signup';
 import ForgotPassword from './pages/public/ForgotPassword';
 import ResetPassword from './pages/public/ResetPassword';
+import CapturePage from './pages/public/CapturePage';
 import OnboardingWizard from './pages/onboarding/OnboardingWizard';
 import Dashboard from './pages/app/Dashboard';
 import Leads from './pages/app/Leads';
@@ -33,6 +34,7 @@ function AppRoutes() {
         <Route path="/signup" element={loading ? <Spinner /> : session ? <Navigate to="/app" replace /> : <Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={session ? <ResetPassword /> : <Navigate to="/login" replace />} />
+        <Route path="/capture/:businessId" element={<CapturePage />} />
       </Route>
 
       {/* Authenticated: onboarding */}
