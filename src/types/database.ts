@@ -263,6 +263,72 @@ export const APPOINTMENT_STATUSES: { value: AppointmentStatus; label: string }[]
 
 export const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+// ============================================================
+// Revenue Recovery Engine
+// ============================================================
+export type OpportunityType =
+  | 'unanswered_lead' | 'missed_call' | 'no_follow_up' | 'proposal_no_response'
+  | 'abandoned_enquiry' | 'cancelled_appointment' | 'no_show'
+  | 'inactive_customer' | 'overdue_follow_up';
+
+export type OpportunityStatus = 'detected' | 'action_required' | 'in_progress' | 'recovered' | 'dismissed';
+export type RecoveryActionKind = 'call' | 'email' | 'whatsapp' | 'follow_up' | 'rebooking' | 'human';
+
+export interface RevenueOpportunity {
+  id: string;
+  business_id: string;
+  dedupe_key: string;
+  opportunity_type: OpportunityType;
+  status: OpportunityStatus;
+  lead_id: string | null;
+  customer_id: string | null;
+  appointment_id: string | null;
+  title: string;
+  reason: string;
+  estimated_value: number | null;
+  currency: string;
+  recommended_action: RecoveryActionKind;
+  ai_recommendation: RecoveryActionKind | null;
+  ai_rationale: string | null;
+  detected_at: string;
+  last_action_at: string | null;
+  recovered_at: string | null;
+  dismissed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecoveryAuditEntry {
+  id: string;
+  business_id: string;
+  opportunity_id: string;
+  actor: 'system' | 'automation' | 'user' | 'ai';
+  user_id: string | null;
+  action: string;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+export const OPPORTUNITY_STATUSES: { value: OpportunityStatus; label: string }[] = [
+  { value: 'detected', label: 'Detected' },
+  { value: 'action_required', label: 'Action Required' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'recovered', label: 'Recovered' },
+  { value: 'dismissed', label: 'Dismissed' },
+];
+
+export const OPPORTUNITY_TYPE_LABELS: Record<OpportunityType, string> = {
+  unanswered_lead: 'Unanswered lead',
+  missed_call: 'Missed call',
+  no_follow_up: 'No follow-up',
+  proposal_no_response: 'Proposal unanswered',
+  abandoned_enquiry: 'Abandoned enquiry',
+  cancelled_appointment: 'Cancelled appointment',
+  no_show: 'No-show',
+  inactive_customer: 'Inactive customer',
+  overdue_follow_up: 'Overdue follow-up',
+};
+
 export const LEAD_STATUSES: { value: LeadStatus; label: string }[] = [
   { value: 'new', label: 'New' },
   { value: 'contacted', label: 'Contacted' },

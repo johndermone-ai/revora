@@ -20,6 +20,7 @@ import Tasks from './pages/app/Tasks';
 import Automations from './pages/app/Automations';
 import Settings from './pages/app/Settings';
 import CalendarPage from './pages/app/CalendarPage';
+import RecoveryPage from './pages/app/RecoveryPage';
 import { AIAssistantPage, AnalyticsPage, BillingPage, IntegrationsPage } from './pages/app/ComingSoon';
 import { Spinner } from './components/ui';
 
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="activities" element={<Activities />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="calendar" element={<CalendarPage />} />
+        <Route path="recovery" element={<RecoveryPage />} />
         <Route path="automations" element={<Automations />} />
         <Route path="ai-assistant" element={<AIAssistantPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />

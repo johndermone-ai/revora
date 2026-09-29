@@ -81,6 +81,14 @@ Production-ready foundation for a multi-tenant SaaS built on **React + TypeScrip
 - **Google Calendar:** architecture ready (`provider`, `google_calendar_id`, `google_event_id`, `sync_enabled`, `last_synced_at`) but sync is NOT implemented — nothing pretends to be synced.
 - Deploy: `supabase functions deploy book-appointment --no-verify-jwt` and apply `002_booking.sql`.
 
+### Revenue Recovery Engine
+- **Tables** (migration `003_revenue_recovery.sql`): `revenue_opportunities` (9 detection types, 5 statuses: Detected → Action Required → In Progress → Recovered/Dismissed, dedupe key so the scanner never duplicates an opportunity and never reopens a dismissed/recovered one) and `recovery_actions` (audit trail — every automated or manual action recorded with actor: system/automation/user/ai).
+- **Detection** (`supabase/functions/recovery-scan`, JWT-verified membership): unanswered leads, possible missed calls (phone-sourced leads left unanswered — honest proxy until telephony integration; no fake call logs), leads without follow-up, proposals without response, abandoned enquiries, cancelled appointments, no-shows, inactive customers (90+ days), overdue follow-ups. Stale detections (24h+) are automatically promoted to Action Required.
+- **Estimated value is NEVER invented.** It is set only when the lead's own budget field contains a figure; otherwise the UI shows "Value unknown." Recovered revenue sums real lead-provided values only.
+- **Recommended actions** are channel-aware (call/WhatsApp need a phone, email needs an address, rebooking for appointment losses, human intervention for inactive customers) with `ai_recommendation` columns prepared for the AI layer.
+- **Dashboard** (`/app/recovery`): stat cards (detected, acted upon, recovered revenue, action rate), status filters, per-opportunity Take action (creates a task + activity, moves to In Progress), Mark recovered, Dismiss, and a full audit-trail modal.
+- Deploy: `supabase functions deploy recovery-scan`.
+
 ## Notes for future phases
 
 - Voice AI, website chat capture, booking, quotes, revenue recovery, retention and analytics were deliberately NOT built — the schema and automation engine are structured so they slot in.
