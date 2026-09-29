@@ -17,7 +17,12 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setSubmitting(false);
     if (error) {
-      setError(error.message === 'Invalid login credentials' ? 'Incorrect email or password.' : error.message);
+      const msg = error.message;
+      setError(
+        msg === 'Invalid login credentials' ? 'Incorrect email or password.'
+        : msg === 'Email not confirmed' ? 'Your email is not confirmed yet. Check your inbox for the confirmation link, or use "Forgot password" to receive a reset email.'
+        : msg
+      );
       return;
     }
     navigate('/app');

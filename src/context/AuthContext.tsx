@@ -11,6 +11,8 @@ interface AuthState {
   activeBusiness: Business | null;
   activeRole: UserRole | null;
   loading: boolean;
+  /** true while memberships/businesses are being fetched for the signed-in user */
+  businessesLoading: boolean;
   setActiveBusinessId: (id: string) => void;
   refreshBusinesses: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -25,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [businesses, setBusinesses] = useState<{ business: Business; role: UserRole }[]>([]);
   const [activeBusinessId, setActiveBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [businessesLoading, setBusinessesLoading] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -47,8 +50,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setMemberships([]);
         setBusinesses([]);
         setActiveBusinessId(null);
+        setBusinessesLoading(false);
         return;
       }
+      setBusinessesLoading(true);
       const [{ data: profileData }, { data: memberData }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', session.user.id).single(),
         supabase.from('business_members').select('*').eq('user_id', session.user.id),
@@ -77,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setBusinesses([]);
         setActiveBusinessId(null);
       }
+      setBusinessesLoading(false);
     }
     load();
     return () => { cancelled = true; };
@@ -94,9 +100,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     activeBusiness,
     activeRole,
     loading,
+    businessesLoading,
     setActiveBusinessId: (id) => setActiveBusinessId(id),
     refreshBusinesses: async () => {
       if (!session?.user) return;
+      setBusinessesLoading(true);
       const { data: memberData } = await supabase.from('business_members').select('*').eq('user_id', session.user.id);
       const members = (memberData as BusinessMember[]) ?? [];
       setMemberships(members);
@@ -112,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return list[0]?.business.id ?? null;
         });
       }
+      setBusinessesLoading(false);
     },
     signOut: async () => {
       await supabase.auth.signOut();

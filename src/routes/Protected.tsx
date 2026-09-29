@@ -14,8 +14,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
 // Blocks the app until the user has a business (onboarding gate).
 export function RequireBusiness({ children }: { children: ReactNode }) {
-  const { loading, businesses } = useAuth();
-  if (loading) return <Spinner label="Loading…" />;
+  const { loading, businessesLoading, businesses } = useAuth();
+  // Wait for BOTH the session and the membership fetch — a signed-in user
+  // with a business must never be bounced to onboarding because the list
+  // was still loading (this was the login redirect loop).
+  if (loading || businessesLoading) return <Spinner label="Loading…" />;
   if (!businesses || businesses.length === 0) return <Navigate to="/onboarding" replace />;
   return <>{children}</>;
 }

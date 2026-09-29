@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -17,8 +17,14 @@ const GOALS = [
 const STEPS = ['Business name', 'Industry', 'Website', 'Phone', 'Email', 'Main goal', 'Employees', 'Confirm'];
 
 export default function OnboardingWizard() {
-  const { refreshBusinesses, businesses } = useAuth();
+  const { refreshBusinesses, businesses, businessesLoading } = useAuth();
   const navigate = useNavigate();
+
+  // A signed-in user who already has a business never needs onboarding —
+  // send them straight to the app once the list has loaded.
+  useEffect(() => {
+    if (!businessesLoading && businesses.length > 0) navigate('/app', { replace: true });
+  }, [businessesLoading, businesses, navigate]);
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
