@@ -19,7 +19,8 @@ import Activities from './pages/app/Activities';
 import Tasks from './pages/app/Tasks';
 import Automations from './pages/app/Automations';
 import Settings from './pages/app/Settings';
-import { AIAssistantPage, AnalyticsPage, BillingPage, CalendarPage, IntegrationsPage } from './pages/app/ComingSoon';
+import CalendarPage from './pages/app/CalendarPage';
+import { AIAssistantPage, AnalyticsPage, BillingPage, IntegrationsPage } from './pages/app/ComingSoon';
 import { Spinner } from './components/ui';
 
 function AppRoutes() {

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useBusinessData } from '../../hooks/useBusinessData';
-import type { Lead, Customer, Activity, Task } from '../../types/database';
+import type { Lead, Customer, Activity, Task, Appointment } from '../../types/database';
 import { Card, CardHeader, EmptyState, ErrorState, Spinner, StatCard, Badge } from '../../components/ui';
 import PageHeader from '../../components/layout/PageHeader';
 import { relativeTime } from '../../lib/format';
@@ -15,8 +15,9 @@ export default function Dashboard() {
   const customers = useBusinessData<Customer>('customers', bizId, { order: 'created_at' });
   const activities = useBusinessData<Activity>('activities', bizId, { order: 'created_at' });
   const tasks = useBusinessData<Task>('tasks', bizId, { order: 'created_at' });
+  const appointments = useBusinessData<Appointment>('appointments', bizId, { order: 'start_at', ascending: true });
 
-  const loading = leads.loading || customers.loading || activities.loading;
+  const loading = leads.loading || customers.loading || activities.loading || appointments.loading;
   const error = leads.error ?? customers.error ?? activities.error;
 
   const m = useMemo(() => {
@@ -33,12 +34,15 @@ export default function Dashboard() {
       won,
       conversionRate: total === 0 ? 0 : Math.round((won / total) * 100),
       followUpsDue: all.filter((l) => l.next_follow_up_at && new Date(l.next_follow_up_at).getTime() < now && !['won', 'lost'].includes(l.status)).length,
+      upcomingAppointments: appointments.data
+        .filter((a) => new Date(a.start_at).getTime() >= Date.now() && ['requested', 'confirmed', 'rescheduled'].includes(a.status))
+        .slice(0, 5),
       upcoming: all
         .filter((l) => l.next_follow_up_at && new Date(l.next_follow_up_at).getTime() >= now)
         .sort((a, b) => a.next_follow_up_at!.localeCompare(b.next_follow_up_at!))
         .slice(0, 5),
     };
-  }, [leads.data, customers.data]);
+  }, [leads.data, customers.data, appointments.data]);
 
   if (loading) return <Spinner label="Loading dashboard…" />;
   if (error) return <ErrorState message={error} onRetry={leads.refetch} />;
@@ -52,7 +56,7 @@ export default function Dashboard() {
         <StatCard label="Customers" value={m.customers} />
         <StatCard label="Conversion rate" value={`${m.conversionRate}%`} hint={`${m.won} won of ${m.total} leads`} />
         <StatCard label="Follow-ups overdue" value={m.followUpsDue} accent={m.followUpsDue > 0} hint={m.followUpsDue > 0 ? 'Needs attention' : 'All caught up'} />
-        <StatCard label="Upcoming appointments" value={m.upcoming.length} hint="From follow-up schedule" />
+        <StatCard label="Upcoming appointments" value={appointments.data.filter((a) => new Date(a.start_at).getTime() >= Date.now() && ['requested', 'confirmed', 'rescheduled'].includes(a.status)).length} hint={m.upcomingAppointments[0] ? `Next: ${new Date(m.upcomingAppointments[0].start_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}` : 'Nothing booked'} />
         <StatCard label="Revenue" value={<span className="text-slate-400">Soon</span>} hint="Revenue tracking coming soon" />
         <StatCard label="Open tasks" value={tasks.data.filter((t) => t.status === 'open' || t.status === 'in_progress').length} />
       </div>

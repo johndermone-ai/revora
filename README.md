@@ -72,6 +72,15 @@ Production-ready foundation for a multi-tenant SaaS built on **React + TypeScrip
 | Delete records | ✅ | ✅ | ❌ |
 | Manage automations, templates, business profile | ✅ | ✅ | ❌ |
 
+### Appointment & booking system
+- **One booking engine for every channel.** `supabase/functions/_shared/bookingEngine.ts` is the single source of truth for slot logic (working hours, buffer, duration, minimum notice, booking window, holidays, conflict detection). The staff UI, the website flow and the AI voice agent all use it — there is no separate voice booking system.
+- **Tables** (migration `002_booking.sql`): `calendars` (internal/google providers prepared), `availability_rules` (per-weekday working hours; staff-specific rules supported), `booking_settings` (duration, buffer, min notice, max window, auto-confirm, holidays), `appointments` (6 states: requested → confirmed → rescheduled / cancelled / completed / no-show; `created_source` distinguishes manual / lead / website / ai_voice), `appointment_participants`.
+- **Booking flow:** lead → available slot → confirmation (manual or auto-confirm) → appointment → completed/no-show. Reminders are prepared via the notifications table; delivery activates with channel integrations.
+- **Calendar page** (`/app/calendar`): Day / Week / Month views; staff can create, confirm, reschedule, cancel, mark completed or no-show. Slots offered in the UI come from the same engine.
+- **Public endpoint** `supabase/functions/book-appointment` (deploy with `--no-verify-jwt`): for AI voice and website flows. Finds-or-creates the lead (reusing an existing lead matching email/phone), validates the requested slot, and on conflict returns the next 3 alternatives from the same engine. Rate-limited, CORS-enabled, strict validation.
+- **Google Calendar:** architecture ready (`provider`, `google_calendar_id`, `google_event_id`, `sync_enabled`, `last_synced_at`) but sync is NOT implemented — nothing pretends to be synced.
+- Deploy: `supabase functions deploy book-appointment --no-verify-jwt` and apply `002_booking.sql`.
+
 ## Notes for future phases
 
 - Voice AI, website chat capture, booking, quotes, revenue recovery, retention and analytics were deliberately NOT built — the schema and automation engine are structured so they slot in.

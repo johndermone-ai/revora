@@ -175,6 +175,94 @@ export interface Subscription {
   current_period_end: string | null;
 }
 
+// ============================================================
+// Booking system
+// ============================================================
+export type AppointmentStatus = 'requested' | 'confirmed' | 'rescheduled' | 'cancelled' | 'completed' | 'no_show';
+export type AppointmentSource = 'manual' | 'ai_voice' | 'website' | 'lead';
+
+export interface CalendarEntity {
+  id: string;
+  business_id: string;
+  name: string;
+  provider: 'internal' | 'google';
+  is_default: boolean;
+  google_calendar_id: string | null;
+  sync_enabled: boolean;
+  last_synced_at: string | null;
+  created_at: string;
+}
+
+export interface AvailabilityRule {
+  id: string;
+  business_id: string;
+  calendar_id: string | null;
+  staff_user_id: string | null;
+  day_of_week: number; // 0 = Sunday
+  start_time: string;  // "HH:MM:SS"
+  end_time: string;
+  created_at: string;
+}
+
+export interface BookingSettings {
+  id: string;
+  business_id: string;
+  slot_duration_minutes: number;
+  buffer_minutes: number;
+  min_notice_minutes: number;
+  max_booking_days: number;
+  auto_confirm: boolean;
+  holidays: string[]; // "YYYY-MM-DD"
+  created_at: string;
+}
+
+export interface Appointment {
+  id: string;
+  business_id: string;
+  calendar_id: string | null;
+  lead_id: string | null;
+  customer_id: string | null;
+  title: string;
+  status: AppointmentStatus;
+  start_at: string;
+  end_at: string;
+  duration_minutes: number;
+  location: string | null;
+  notes: string | null;
+  created_source: AppointmentSource;
+  created_by: string | null;
+  google_event_id: string | null;
+  google_synced_at: string | null;
+  cancelled_at: string | null;
+  completed_at: string | null;
+  rescheduled_from: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AppointmentParticipant {
+  id: string;
+  business_id: string;
+  appointment_id: string;
+  user_id: string | null;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  role: 'staff' | 'lead' | 'customer';
+  created_at: string;
+}
+
+export const APPOINTMENT_STATUSES: { value: AppointmentStatus; label: string }[] = [
+  { value: 'requested', label: 'Requested' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'rescheduled', label: 'Rescheduled' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'no_show', label: 'No-show' },
+];
+
+export const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 export const LEAD_STATUSES: { value: LeadStatus; label: string }[] = [
   { value: 'new', label: 'New' },
   { value: 'contacted', label: 'Contacted' },
