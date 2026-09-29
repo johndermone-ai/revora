@@ -21,7 +21,8 @@ import Automations from './pages/app/Automations';
 import Settings from './pages/app/Settings';
 import CalendarPage from './pages/app/CalendarPage';
 import RecoveryPage from './pages/app/RecoveryPage';
-import { AIAssistantPage, AnalyticsPage, BillingPage, IntegrationsPage } from './pages/app/ComingSoon';
+import { AIAssistantPage, BillingPage, IntegrationsPage } from './pages/app/ComingSoon';
+import AnalyticsPage from './pages/app/AnalyticsPage';
 import { Spinner } from './components/ui';
 
 function AppRoutes() {

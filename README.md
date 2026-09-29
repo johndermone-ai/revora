@@ -89,6 +89,12 @@ Production-ready foundation for a multi-tenant SaaS built on **React + TypeScrip
 - **Dashboard** (`/app/recovery`): stat cards (detected, acted upon, recovered revenue, action rate), status filters, per-opportunity Take action (creates a task + activity, moves to In Progress), Mark recovered, Dismiss, and a full audit-trail modal.
 - Deploy: `supabase functions deploy recovery-scan`.
 
+### Revenue Analytics dashboard (`/app/analytics`)
+- **Periods:** Today / 7 / 30 / 90 days / custom range.
+- **Honest analytics rules:** metrics render "—" with an explanatory hint wherever the data source doesn't exist — never a manufactured zero. Actual revenue is shown as unavailable until a payments/invoicing source is connected (never estimated). Estimated opportunity value and recovered revenue only sum figures leads themselves provided.
+- **Sections:** Lead metrics (total/new/qualified/won/lost/conversion rate), Voice metrics (call counts honestly blank until the voice integration exists; leads & appointments generated via the existing AI voice booking flow are real), Sales metrics (proposals, avg conversion time, follow-up performance incl. real sends only), Revenue recovery (detected/recovered/recovered revenue), Customer metrics (new/returning 2+ appointments/inactive 90+ days).
+- **Chart:** leads-over-time bar chart (no chart library, inline SVG-free CSS bars) rendered only when the underlying data is meaningful; otherwise an explanatory note.
+
 ## Notes for future phases
 
 - Voice AI, website chat capture, booking, quotes, revenue recovery, retention and analytics were deliberately NOT built — the schema and automation engine are structured so they slot in.
