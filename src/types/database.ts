@@ -1,5 +1,5 @@
 export type UserRole = 'owner' | 'admin' | 'staff';
-export type LeadSource = 'website' | 'phone' | 'whatsapp' | 'email' | 'manual' | 'referral' | 'google' | 'social' | 'ai_generated' | 'marketplace' | 'other';
+export type LeadSource = 'website' | 'phone' | 'whatsapp' | 'email' | 'manual' | 'referral' | 'google' | 'social' | 'ai_generated' | 'marketplace' | 'google_maps' | 'other';
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal_sent' | 'negotiation' | 'won' | 'lost';
 export type TaskStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
 export type FollowUpChannel = 'email' | 'whatsapp' | 'sms';
@@ -427,5 +427,6 @@ export const LEAD_SOURCES: { value: LeadSource; label: string }[] = [
   { value: 'social', label: 'Social' },
   { value: 'ai_generated', label: 'AI generated' },
   { value: 'marketplace', label: 'Lead provider' },
+  { value: 'google_maps', label: 'Google Maps' },
   { value: 'other', label: 'Other' },
 ];

@@ -10,7 +10,7 @@ import { Badge, Button, Card, EmptyState, ErrorState, Field, Input, Modal, Selec
 import PageHeader from '../../components/layout/PageHeader';
 import { formatDate, relativeTime } from '../../lib/format';
 import { scoreBand } from '../../lib/leadScoring';
-import { normalizeLeadRows, parseCsv } from '../../lib/csv';
+import { isGoogleMapsExport, mapGoogleMapsRows, normalizeLeadRows, parseCsv, type GmLead } from '../../lib/csv';
 
 type ViewMode = 'list' | 'pipeline';
 
@@ -59,7 +59,7 @@ export default function Leads() {
   const genQuota = PLAN_QUOTAS[genPlanName] ?? 0;
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
   const genUsedToday = (data ?? []).filter(
-    (l) => (l.source === 'ai_generated' || l.source === 'marketplace') && new Date(l.created_at) >= startOfToday
+    (l) => (l.source === 'ai_generated' || l.source === 'marketplace' || l.source === 'google_maps') && new Date(l.created_at) >= startOfToday
   ).length;
 
   async function updateGenSettings(patch: Record<string, unknown>) {
@@ -503,7 +503,19 @@ function CsvImportModal({ open, onClose, onDone }: { open: boolean; onClose: () 
     setErr(null);
     try {
       const rows = parseCsv(text);
-      const { unique: toInsert, skipped, duplicates } = normalizeLeadRows(rows);
+      const googleMaps = isGoogleMapsExport(rows);
+      const toInsert: (Record<string, string | null> | GmLead)[] = [];
+      let skipped = 0;
+      let duplicates = 0;
+      if (googleMaps) {
+        const { mapped, duplicates: d, skipped: s } = mapGoogleMapsRows(rows);
+        skipped = s; duplicates = d;
+        toInsert.push(...mapped);
+      } else {
+        const { unique, skipped: s, duplicates: d } = normalizeLeadRows(rows);
+        skipped = s; duplicates = d;
+        toInsert.push(...unique);
+      }
       if (toInsert.length === 0) throw new Error('No importable rows found. The CSV needs a name column and at least one data row.');
 
       const payload = toInsert.map((r) => ({
@@ -513,11 +525,11 @@ function CsvImportModal({ open, onClose, onDone }: { open: boolean; onClose: () 
         phone: r.phone || null,
         company: r.company || null,
         service_interest: r.service_interest || null,
-        budget: r.budget || null,
+        budget: ('budget' in r && r.budget) || null,
         notes: r.notes || null,
-        source: 'other',
+        source: googleMaps ? 'google_maps' : 'other',
         status: 'new',
-        lead_score: 10,
+        lead_score: googleMaps ? 30 : 10,
       }));
 
       const { error } = await supabase.from('leads').insert(payload);
@@ -528,7 +540,7 @@ function CsvImportModal({ open, onClose, onDone }: { open: boolean; onClose: () 
         entity_type: 'automation',
         entity_id: activeBusiness.id,
         type: 'csv_import',
-        title: `CSV import: ${payload.length} leads added`,
+        title: `${googleMaps ? 'Google Maps import' : 'CSV import'}: ${payload.length} leads added`,
         description: `${payload.length} imported${skipped ? `, ${skipped} skipped (missing name)` : ''}${duplicates ? `, ${duplicates} duplicate${duplicates === 1 ? '' : 's'} removed` : ''}.`,
       });
 

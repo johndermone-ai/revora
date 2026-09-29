@@ -41,3 +41,50 @@ export function normalizeLeadRows(rows: Record<string, string>[]) {
   });
   return { valid: valid.length, unique, skipped: rows.length - valid.length, duplicates: valid.length - unique.length };
 }
+
+// ============================================================
+// Google Maps scraper exports (github.com/omkarcloud/google-maps-scraper)
+// Detection: a kgmid column, or name + main_category + address
+// together (headers already normalised lowercase by parseCsv).
+// ============================================================
+export interface GmLead {
+  name: string; email: string | null; phone: string | null; company: string | null;
+  service_interest: string | null; notes: string | null; kgmid: string | null;
+}
+
+export function isGoogleMapsExport(rows: Record<string, string>[]): boolean {
+  if (rows.length === 0) return false;
+  const h = Object.keys(rows[0]);
+  if (h.includes('kgmid')) return true;
+  return h.includes('name') && h.includes('main_category') && h.includes('address');
+}
+
+export function mapGoogleMapsRows(rows: Record<string, string>[]): { mapped: GmLead[]; duplicates: number; skipped: number } {
+  const seen = new Set<string>();
+  const mapped: GmLead[] = [];
+  let duplicates = 0;
+  let skipped = 0;
+  for (const r of rows) {
+    const name = (r.name ?? '').trim();
+    if (!name) { skipped++; continue; }
+    const key = (r.kgmid || r.phone_international || r.phone || r.email || name).toLowerCase();
+    if (seen.has(key)) { duplicates++; continue; }
+    seen.add(key);
+    const bits: string[] = [];
+    if (r.address) bits.push(`Address: ${r.address}`);
+    if (r.website) bits.push(`Website: ${r.website}`);
+    if (r.rating) bits.push(`Rating: ${r.rating}${r.reviews ? ` (${r.reviews} reviews)` : ''}`);
+    if (r.linkedin) bits.push(`LinkedIn: ${r.linkedin}`);
+    if (r.facebook) bits.push(`Facebook: ${r.facebook}`);
+    mapped.push({
+      name,
+      email: r.email || null,
+      phone: (r.phone_international || r.phone || '').trim() || null,
+      company: name,
+      service_interest: r.main_category || null,
+      notes: bits.length ? `Google Maps listing. ${bits.join(' · ')}` : 'Google Maps listing.',
+      kgmid: r.kgmid || null,
+    });
+  }
+  return { mapped, duplicates, skipped };
+}

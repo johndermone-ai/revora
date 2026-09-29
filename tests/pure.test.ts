@@ -62,5 +62,25 @@ t('deduplicates identical contact keys', norm.unique.length === 2 && norm.duplic
 t('empty input parses to no rows', parseCsv('').length === 0);
 t('CRLF line endings handled', parseCsv('name,email\r\nJane,j@x\r\n').length === 1);
 
+// ---------- Google Maps CSV mapping (src/lib/csv.ts) ----------
+import { isGoogleMapsExport, mapGoogleMapsRows } from '../src/lib/csv';
+
+console.log('Google Maps mapping:');
+const gmRows = [
+  { kgmid: '/g/1', name: 'Acme Plumbing', main_category: 'Plumber', phone: '0161 111 2222', phone_international: '+441611112222', address: '1 Main St, Manchester', website: 'https://acme.example', rating: '4.8', reviews: '21', email: '' },
+  { kgmid: '/g/1', name: 'Acme Plumbing (duplicate)', main_category: 'Plumber' },
+  { kgmid: '', name: '', main_category: 'Plumber' },
+];
+const gm = mapGoogleMapsRows(gmRows);
+t('isGoogleMapsExport detects kgmid header', isGoogleMapsExport(gmRows) && !isGoogleMapsExport([{ name: 'A', email: 'b@c.d' }]));
+t('mapGoogleMapsRows maps, dedupes and enriches',
+  gm.mapped.length === 1 && gm.duplicates === 1 && gm.skipped === 1
+  && gm.mapped[0].phone === '+441611112222'
+  && gm.mapped[0].service_interest === 'Plumber'
+  && gm.mapped[0].notes.includes('Rating: 4.8')
+  && gm.mapped[0].notes.includes('Website: https://acme.example')
+  && gm.mapped[0].company === 'Acme Plumbing');
+
 console.log(`\n${passed} passed, ${failed} failed`);
+
 process.exit(failed > 0 ? 1 : 0);
