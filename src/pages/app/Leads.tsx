@@ -28,6 +28,40 @@ export default function Leads() {
   const [fromDate, setFromDate] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
+  const [testErr, setTestErr] = useState<string | null>(null);
+  const captureUrl = `${window.location.origin}/capture/${activeBusiness?.id ?? ''}`;
+
+  async function sendTestEnquiry() {
+    if (!activeBusiness) return;
+    setTesting(true);
+    setTestMsg(null);
+    setTestErr(null);
+    try {
+      const stamp = Date.now().toString().slice(-6);
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/capture-lead`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessId: activeBusiness.id,
+          name: `Test Enquiry ${stamp}`,
+          email: `test-${stamp}@example.com`,
+          service_interest: 'Automated web form test',
+          notes: 'Created by the "Send a test enquiry" button — delete this lead whenever you like.',
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? 'Test failed');
+      setTestMsg('Lead arrived automatically — check the top of the list.');
+      refetch();
+    } catch (e) {
+      setTestErr(e instanceof Error ? e.message : 'Test failed');
+    } finally {
+      setTesting(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -59,6 +93,40 @@ export default function Leads() {
         subtitle="Every potential customer, captured and organised in one pipeline."
         action={<div className="flex gap-2"><Button variant="secondary" onClick={() => setImportOpen(true)}>Import CSV</Button><Button onClick={() => setCreateOpen(true)}>New lead</Button></div>}
       />
+      {/* ----------------------------------------------------------
+        Automatic lead capture — the channels that create leads FOR
+        you. Manual entry is only a fallback; every block here is a
+        live automation path. "Send test enquiry" pushes a real lead
+        through the real public endpoint (no auth) to prove it works.
+        ---------------------------------------------------------- */}
+      <Card className="mb-6 border-brand-200 bg-brand-50/40">
+        <div className="grid gap-4 p-5 md:grid-cols-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Web form (live)</p>
+            <p className="mt-1 text-xs text-slate-500">Share this link or embed it — every submission becomes a lead automatically.</p>
+            <div className="mt-2 flex items-center gap-2">
+              <code className="flex-1 truncate rounded-lg bg-white px-2 py-1.5 text-xs text-slate-700">{captureUrl}</code>
+              <Button variant="secondary" onClick={() => { navigator.clipboard.writeText(captureUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>{copied ? 'Copied' : 'Copy'}</Button>
+            </div>
+            <button onClick={sendTestEnquiry} className="mt-2 text-xs font-medium text-brand-700 hover:underline disabled:text-slate-400" disabled={testing}>
+              {testing ? 'Sending…' : 'Send a test enquiry →'}
+            </button>
+            {testMsg && <p className="mt-1 text-xs text-emerald-700">{testMsg}</p>}
+            {testErr && <p className="mt-1 text-xs text-red-600">{testErr}</p>}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Phone (AI voice agent)</p>
+            <p className="mt-1 text-xs text-slate-500">Connect Retell AI or Vapi and every answered call creates or updates a lead, books appointments and logs itself.</p>
+            <Link to="/app/voice" className="mt-2 inline-block text-xs font-medium text-brand-700 hover:underline">Set up the voice agent →</Link>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-900">API / webhooks (external systems)</p>
+            <p className="mt-1 text-xs text-slate-500">Push leads from any other tool with your Revora API key — deduplicated automatically.</p>
+            <Link to="/app/integrations" className="mt-2 inline-block text-xs font-medium text-brand-700 hover:underline">Get your API key →</Link>
+          </div>
+        </div>
+      </Card>
+
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
           {(['list', 'pipeline'] as ViewMode[]).map((v) => (
